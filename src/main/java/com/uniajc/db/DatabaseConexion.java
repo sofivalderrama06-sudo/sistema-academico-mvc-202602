@@ -38,9 +38,9 @@ public class DatabaseConexion {
                 String user = properties.get("USER").toString();
                 String password = properties.get("PASSWORD").toString();
 
-                System.out.println("URL =>>> " + url);
-                System.out.println("User =>>> " + user);
-                System.out.println("Password =>>> " + password);
+                //System.out.println("URL =>>> " + url);
+                //System.out.println("User =>>> " + user);
+                //System.out.println("Password =>>> " + password);
 
                 // Establecer la conexión
                 connection = DriverManager.getConnection(url, user, password);
