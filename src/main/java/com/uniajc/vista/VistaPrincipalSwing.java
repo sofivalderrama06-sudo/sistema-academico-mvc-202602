@@ -34,6 +34,7 @@ public class VistaPrincipalSwing extends JFrame {
     private static final String PANEL_INICIO = "inicio";
     private static final String PANEL_ESTUDIANTES = "estudiantes";
     private static final String PANEL_DOCENTES = "docentes";
+    private static final String PANEL_MATERIAS = "materias";
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel panelContenedor = new JPanel(cardLayout);
@@ -44,6 +45,7 @@ public class VistaPrincipalSwing extends JFrame {
     // Paneles que cumplen el contrato Vista (se pueden refrescar)
     private final VistaEstudianteSwing vistaEstudiante = new VistaEstudianteSwing();
     private final VistaDocenteSwing vistaDocente = new VistaDocenteSwing();
+    private final VistaMateriaSwing vistaMateria = new VistaMateriaSwing();
 
     public VistaPrincipalSwing(Usuario usuario, Runnable alCerrarSesion) {
         this.usuario = usuario;
@@ -60,6 +62,7 @@ public class VistaPrincipalSwing extends JFrame {
         panelContenedor.add(crearPanelBienvenida(), PANEL_INICIO);
         panelContenedor.add(vistaEstudiante, PANEL_ESTUDIANTES);
         panelContenedor.add(vistaDocente, PANEL_DOCENTES);
+        panelContenedor.add(vistaMateria, PANEL_MATERIAS);
 
         setLayout(new BorderLayout());
         add(panelContenedor, BorderLayout.CENTER);
@@ -130,9 +133,19 @@ public class VistaPrincipalSwing extends JFrame {
         });
         menuDocentes.add(itemGestionDocentes);
 
+        // Menu Materias: refresca la vista y luego la muestra en el contenedor.
+        JMenu menuMaterias = crearMenu("Materias");
+        JMenuItem itemGestionMaterias = new JMenuItem("Gestion de materias");
+        itemGestionMaterias.addActionListener(e -> {
+            vistaMateria.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_MATERIAS);
+        });
+        menuMaterias.add(itemGestionMaterias);
+
         barra.add(menuArchivo);
         barra.add(menuEstudiantes);
         barra.add(menuDocentes);
+        barra.add(menuMaterias);
         setJMenuBar(barra);
     }
 
