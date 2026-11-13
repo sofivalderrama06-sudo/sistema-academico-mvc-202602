@@ -64,7 +64,7 @@ public class VistaMateriaSwing extends JPanel implements Vista {
         cargarMaterias();
     }
 
-    // Actualiza la tabla cada vez que la ventana principal muestra este panel.
+    // Cumple con la interfaz Vista y actualiza la tabla cada vez que la ventana principal muestra este panel.
     @Override
     public void actualizarPanel() {
         cargarMaterias();
