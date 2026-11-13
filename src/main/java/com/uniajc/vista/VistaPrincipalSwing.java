@@ -36,6 +36,7 @@ public class VistaPrincipalSwing extends JFrame {
     private static final String PANEL_DOCENTES = "docentes";
     private static final String PANEL_MATERIAS = "materias";
     private static final String PANEL_GRUPOS = "grupos";
+    private static final String PANEL_INSCRIPCIONES = "inscripciones";
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel panelContenedor = new JPanel(cardLayout);
@@ -48,6 +49,7 @@ public class VistaPrincipalSwing extends JFrame {
     private final VistaDocenteSwing vistaDocente = new VistaDocenteSwing();
     private final VistaMateriaSwing vistaMateria = new VistaMateriaSwing();
     private final VistaGrupo vistaGrupo = new VistaGrupo();
+    private final VistaInscripcionSwing vistaInscripcion = new VistaInscripcionSwing();
 
     public VistaPrincipalSwing(Usuario usuario, Runnable alCerrarSesion) {
         this.usuario = usuario;
@@ -66,6 +68,7 @@ public class VistaPrincipalSwing extends JFrame {
         panelContenedor.add(vistaDocente, PANEL_DOCENTES);
         panelContenedor.add(vistaMateria, PANEL_MATERIAS);
         panelContenedor.add(vistaGrupo, PANEL_GRUPOS);
+        panelContenedor.add(vistaInscripcion, PANEL_INSCRIPCIONES);
 
         setLayout(new BorderLayout());
         add(panelContenedor, BorderLayout.CENTER);
@@ -153,11 +156,20 @@ public class VistaPrincipalSwing extends JFrame {
         });
         menuGrupos.add(itemGestionGrupos);
 
+        JMenu menuInscripciones = crearMenu("Inscripciones");
+        JMenuItem itemGestionInscripciones = new JMenuItem("Gestion de inscripciones");
+        itemGestionInscripciones.addActionListener(e -> {
+            vistaInscripcion.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_INSCRIPCIONES);
+        });
+        menuInscripciones.add(itemGestionInscripciones);
+
         barra.add(menuArchivo);
         barra.add(menuEstudiantes);
         barra.add(menuDocentes);
         barra.add(menuMaterias);
         barra.add(menuGrupos);
+        barra.add(menuInscripciones);
         setJMenuBar(barra);
     }
 
