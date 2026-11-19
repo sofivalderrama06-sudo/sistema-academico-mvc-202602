@@ -1,0 +1,55 @@
+package com.uniajc.modelo;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+public class DocenteTest {
+
+    @Test
+    @DisplayName("El constructor vacio deja los campos sin valor")
+    void constructorVacio() {
+        Docente d = new Docente();
+
+        assertEquals(0, d.getId());
+        assertNull(d.getNombre());
+        assertNull(d.getEspecialidad());
+        assertNull(d.getEmail());
+    }
+
+    @Test
+    @DisplayName("El constructor completo asigna los cuatro campos")
+    void constructorCompleto() {
+        Docente d = new Docente(2, "Marta Rios", "Matematicas", "marta@uni.edu.co");
+
+        assertEquals(2, d.getId());
+        assertEquals("Marta Rios", d.getNombre());
+        assertEquals("Matematicas", d.getEspecialidad());
+        assertEquals("marta@uni.edu.co", d.getEmail());
+    }
+
+    @Test
+    @DisplayName("Los setters modifican los campos")
+    void setters() {
+        Docente d = new Docente();
+        d.setId(5);
+        d.setNombre("Luis Mina");
+        d.setEspecialidad("Fisica");
+        d.setEmail("luis@uni.edu.co");
+
+        assertEquals(5, d.getId());
+        assertEquals("Luis Mina", d.getNombre());
+        assertEquals("Fisica", d.getEspecialidad());
+        assertEquals("luis@uni.edu.co", d.getEmail());
+    }
+
+    @Test
+    @DisplayName("toString muestra id, nombre, especialidad y correo")
+    void textoDelObjeto() {
+        Docente d = new Docente(1, "Marta", "Matematicas", "marta@uni.edu.co");
+
+        assertEquals("1 | Marta Matematicas | marta@uni.edu.co", d.toString());
+    }
+}

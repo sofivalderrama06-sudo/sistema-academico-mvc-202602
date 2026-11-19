@@ -34,12 +34,12 @@ public class ControladorLoginTest {
     @Test
     @DisplayName("iniciarSesion devuelve el usuario cuando la base lo encuentra")
     void loginCorrecto() {
-        bd.fila("usuario_id", "u-1", "username", "admin", "nombres", "Laura", "apellidos", "Valderrama");
+        bd.fila("usuario_id", "u-1", "username", "admin", "nombres", "Lauren", "apellidos", "Valderrama");
 
         Optional<Usuario> r = controlador.iniciarSesion("admin", "1234");
 
         assertTrue(r.isPresent());
-        assertEquals("Laura Valderrama", r.get().getNombreCompleto());
+        assertEquals("Lauren Valderrama", r.get().getNombreCompleto());
         assertEquals("admin", bd.ultimosParametros().get(1));
         assertEquals("1234", bd.ultimosParametros().get(2));
     }
