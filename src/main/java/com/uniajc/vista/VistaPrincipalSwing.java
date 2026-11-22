@@ -35,6 +35,7 @@ public class VistaPrincipalSwing extends JFrame {
     private static final String PANEL_ESTUDIANTES = "estudiantes";
     private static final String PANEL_DOCENTES = "docentes";
     private static final String PANEL_MATERIAS = "materias";
+    private static final String PANEL_PERIODOS = "periodos";
     private static final String PANEL_GRUPOS = "grupos";
     private static final String PANEL_INSCRIPCIONES = "inscripciones";
 
@@ -48,6 +49,7 @@ public class VistaPrincipalSwing extends JFrame {
     private final VistaEstudianteSwing vistaEstudiante = new VistaEstudianteSwing();
     private final VistaDocenteSwing vistaDocente = new VistaDocenteSwing();
     private final VistaMateriaSwing vistaMateria = new VistaMateriaSwing();
+    private final VistaPeriodo vistaPeriodo = new VistaPeriodo();
     private final VistaGrupo vistaGrupo = new VistaGrupo();
     private final VistaInscripcionSwing vistaInscripcion = new VistaInscripcionSwing();
 
@@ -67,6 +69,7 @@ public class VistaPrincipalSwing extends JFrame {
         panelContenedor.add(vistaEstudiante, PANEL_ESTUDIANTES);
         panelContenedor.add(vistaDocente, PANEL_DOCENTES);
         panelContenedor.add(vistaMateria, PANEL_MATERIAS);
+        panelContenedor.add(vistaPeriodo, PANEL_PERIODOS);
         panelContenedor.add(vistaGrupo, PANEL_GRUPOS);
         panelContenedor.add(vistaInscripcion, PANEL_INSCRIPCIONES);
 
@@ -148,6 +151,14 @@ public class VistaPrincipalSwing extends JFrame {
         });
         menuMaterias.add(itemGestionMaterias);
 
+        JMenu menuPeriodos = crearMenu("Periodos");
+        JMenuItem itemGestionPeriodos = new JMenuItem("Gestion de periodos");
+        itemGestionPeriodos.addActionListener(e -> {
+            vistaPeriodo.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_PERIODOS);
+        });
+        menuPeriodos.add(itemGestionPeriodos);
+
         JMenu menuGrupos = crearMenu("Grupos");
         JMenuItem itemGestionGrupos = new JMenuItem("Gestion de grupos");
         itemGestionGrupos.addActionListener(e -> {
@@ -168,6 +179,7 @@ public class VistaPrincipalSwing extends JFrame {
         barra.add(menuEstudiantes);
         barra.add(menuDocentes);
         barra.add(menuMaterias);
+        barra.add(menuPeriodos);
         barra.add(menuGrupos);
         barra.add(menuInscripciones);
         setJMenuBar(barra);

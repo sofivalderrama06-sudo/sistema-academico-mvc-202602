@@ -2,7 +2,7 @@ package com.uniajc.modelo;
 
 /**
  * Modelo: usuario que inicio sesion. Nunca guarda la contrasena.
- * Los datos vienen de academico.usuarios + academico.personas.
+ * Los datos vienen de "practica-mvc".usuarios + "practica-mvc".personas.
  */
 public class Usuario {
 

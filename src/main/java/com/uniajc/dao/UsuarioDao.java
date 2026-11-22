@@ -18,13 +18,12 @@ import com.uniajc.modelo.Usuario;
 public class UsuarioDao {
 
     private static final String SQL_LOGIN =
-            "SELECT u.usuario_id, u.username, p.nombres, p.apellidos "
-            + "FROM academico.usuarios u "
-            + "JOIN academico.personas p ON p.persona_id = u.persona_id "
-            + "WHERE LOWER(u.username::text) = LOWER(?) "
-            + "AND u.password_hash = md5(?) "
-            + "AND u.activo = true";
-
+         "SELECT u.usuario_id, u.username, p.nombres, p.apellidos "
+        + "FROM \"academico\".usuario u "
+        + "JOIN \"academico\".persona p ON p.persona_id = u.persona_id "
+        + "WHERE LOWER(u.username) = LOWER(?) "
+        + "AND u.password_hash = md5(?) "
+        + "AND u.activo = true";
     // La conexion es unica (singleton): NO se cierra aqui.
     private Connection obtenerConexion() {
         Connection conn = DatabaseConexion.getConnection();

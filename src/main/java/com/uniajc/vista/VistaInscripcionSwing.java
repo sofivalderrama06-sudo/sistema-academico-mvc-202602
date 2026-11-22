@@ -71,7 +71,7 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         cargarInscripciones();
     }
 
-    /** Recarga los datos cada vez que se muestra el panel. */
+    /** Recarga los datos cada vez que se muestra el panel, cumpliendo con la interfaz Vista. */
     @Override
     public void actualizarPanel() {
         cargarInscripciones();
