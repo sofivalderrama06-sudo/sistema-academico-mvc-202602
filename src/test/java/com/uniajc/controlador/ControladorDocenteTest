@@ -1,0 +1,140 @@
+papackage com.uniajc.controlador;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import com.uniajc.modelo.Docente;
+import com.uniajc.soporte.BdFalsa;
+
+
+/**
+ * Prueba el flujo completo Controlador -> Servicio -> DAO sobre una base de
+ * datos falsa. El controlador crea sus propias dependencias, por eso se
+ * controla la base que usa el DAO.
+ */
+public class ControladorDocenteTest {
+
+    private BdFalsa bd;
+    private ControladorDocente controlador;
+
+    @BeforeEach
+    void preparar() {
+        bd = new BdFalsa().instalar();
+        controlador = new ControladorDocente();
+    }
+
+    @AfterEach
+    void limpiar() {
+        BdFalsa.desinstalar();
+    }
+
+    @Test
+    @DisplayName("registrar verifica el correo y luego inserta el docente")
+    void registrar() {
+        controlador.registrar("Ana", "Matematicas", "ana@uni.edu.co");
+
+        assertEquals(2, bd.sqls.size());
+        assertTrue(bd.sqls.get(0).startsWith("SELECT"));   // busca el correo repetido
+        assertTrue(bd.sqls.get(1).startsWith("INSERT INTO"));
+        assertEquals("Ana", bd.ultimosParametros().get(1));
+        assertEquals("Matematicas", bd.ultimosParametros().get(2));
+        assertEquals("ana@uni.edu.co", bd.ultimosParametros().get(3));
+    }
+
+    @Test
+    @DisplayName("registrar con datos invalidos lanza error y no toca la base de datos")
+    void registrarInvalido() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> controlador.registrar("", "Matematicas", "ana@uni.edu.co"));
+
+        assertEquals("El nombre es obligatorio.", ex.getMessage());
+        assertTrue(bd.sqls.isEmpty());
+    }
+
+    @Test
+    @DisplayName("registrar con un correo ya existente lanza error y no inserta")
+    void registrarCorreoRepetido() {
+        bd.fila("id", 1, "name", "Otro", "specialty", "Fisica", "email", "ana@uni.edu.co");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> controlador.registrar("Ana", "Matematicas", "ana@uni.edu.co"));
+
+        assertEquals("Ya existe un docente con ese correo.", ex.getMessage());
+        assertEquals(0, bd.actualizacionesEjecutadas);
+    }
+
+    @Test
+    @DisplayName("listar devuelve los docentes que entrega la base de datos")
+    void listar() {
+        bd.fila("id", 1, "name", "Ana", "specialty", "Matematicas", "email", "a@b.co");
+        bd.fila("id", 2, "name", "Juan", "specialty", "Fisica", "email", "j@b.co");
+
+        List<Docente> lista = controlador.listar();
+
+        assertEquals(2, lista.size());
+        assertEquals("Juan", lista.get(1).getNombre());
+    }
+
+    @Test
+    @DisplayName("buscarPorId devuelve el docente si existe y vacio si no")
+    void buscarPorId() {
+        assertFalse(controlador.buscarPorId(1).isPresent());
+
+        bd.fila("id", 1, "name", "Ana", "specialty", "Matematicas", "email", "a@b.co");
+        Optional<Docente> r = controlador.buscarPorId(1);
+
+        assertTrue(r.isPresent());
+        assertEquals("Ana", r.get().getNombre());
+    }
+
+    @Test
+    @DisplayName("actualizar arma el docente con los datos recibidos y ejecuta el UPDATE")
+    void actualizar() {
+        bd.fila("id", 1, "name", "Ana", "specialty", "Matematicas", "email", "ana@uni.edu.co");
+
+        controlador.actualizar(1, "Ana Maria", "Matematicas", "ana@uni.edu.co");
+
+        assertTrue(bd.ultimoSql().startsWith("UPDATE"));
+        assertEquals("Ana Maria", bd.ultimosParametros().get(1));
+        assertEquals(1, bd.ultimosParametros().get(4));
+    }
+
+    @Test
+    @DisplayName("actualizar un docente que no existe lanza error")
+    void actualizarInexistente() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> controlador.actualizar(5, "Ana", "Matematicas", "a@b.co"));
+
+        assertEquals("Docente no encontrado.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("eliminar borra el docente cuando existe")
+    void eliminar() {
+        bd.fila("id", 3, "name", "Ana", "specialty", "Matematicas", "email", "a@b.co");
+
+        controlador.eliminar(3);
+
+        assertTrue(bd.ultimoSql().startsWith("DELETE FROM"));
+        assertEquals(3, bd.ultimosParametros().get(1));
+    }
+
+    @Test
+    @DisplayName("eliminar con id invalido lanza error")
+    void eliminarIdInvalido() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> controlador.eliminar(0));
+
+        assertEquals("ID invalido.", ex.getMessage());
+    }
+}
