@@ -28,20 +28,23 @@ public class ControladorEstudianteTest {
 
     @BeforeEach
     void preparar() {
+        //  Se instala una base de datos falsa en memoria y se crea un controlador que la usará
         bd = new BdFalsa().instalar();
         controlador = new ControladorEstudiante();
     }
 
     @AfterEach
     void limpiar() {
+        //  Se desinstala la base de datos falsa para no afectar otras pruebas
         BdFalsa.desinstalar();
     }
 
     @Test
     @DisplayName("registrar verifica el correo y luego inserta el estudiante")
     void registrar() {
+        //  Se registra un estudiante con nombre, apellido y correo
         controlador.registrar("Ana", "Perez", "ana@uni.edu.co");
-
+        //  Se valida que se hayan ejecutado dos sentencias SQL: una SELECT para verificar duplicados y un INSERT
         assertEquals(2, bd.sqls.size());
         assertTrue(bd.sqls.get(0).startsWith("SELECT"));   // busca el correo repetido
         assertTrue(bd.sqls.get(1).startsWith("INSERT INTO"));
@@ -53,11 +56,12 @@ public class ControladorEstudianteTest {
     @Test
     @DisplayName("registrar con datos invalidos lanza error y no toca la base de datos")
     void registrarInvalido() {
+        //  Se intenta registrar un estudiante con nombre vacío, lo que debería lanzar una excepción
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> controlador.registrar("", "Perez", "ana@uni.edu.co"));
 
         assertEquals("El nombre es obligatorio.", ex.getMessage());
-        assertTrue(bd.sqls.isEmpty());
+        assertTrue(bd.sqls.isEmpty());//  No se ejecutó ninguna sentencia SQL
     }
 
     @Test
@@ -78,8 +82,8 @@ public class ControladorEstudianteTest {
         bd.fila("id", 1, "name", "Ana", "lastname", "Perez", "email", "a@b.co");
         bd.fila("id", 2, "name", "Juan", "lastname", "Diaz", "email", "j@b.co");
 
-        List<Estudiante> lista = controlador.listar();
-
+        List<Estudiante> lista = controlador.listar();//  Se obtiene la lista de estudiantes desde el controlador, que a su vez consulta la base de datos falsa
+        //  Se valida que la lista contenga los estudiantes esperados
         assertEquals(2, lista.size());
         assertEquals("Juan", lista.get(1).getNombre());
     }
@@ -99,10 +103,11 @@ public class ControladorEstudianteTest {
     @Test
     @DisplayName("actualizar arma el estudiante con los datos recibidos y ejecuta el UPDATE")
     void actualizar() {
+        //  Se simula que el estudiante con id=1 ya existe en la base de datos
         bd.fila("id", 1, "name", "Ana", "lastname", "Perez", "email", "ana@uni.edu.co");
-
+        //  Se actualizan los datos del estudiante con id=1
         controlador.actualizar(1, "Ana Maria", "Perez", "ana@uni.edu.co");
-
+        //  Se valida que se haya ejecutado un UPDATE y que los parámetros sean los esperados
         assertTrue(bd.ultimoSql().startsWith("UPDATE"));
         assertEquals("Ana Maria", bd.ultimosParametros().get(1));
         assertEquals(1, bd.ultimosParametros().get(4));

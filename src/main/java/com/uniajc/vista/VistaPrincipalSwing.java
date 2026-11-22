@@ -38,6 +38,7 @@ public class VistaPrincipalSwing extends JFrame {
     private static final String PANEL_PERIODOS = "periodos";
     private static final String PANEL_GRUPOS = "grupos";
     private static final String PANEL_INSCRIPCIONES = "inscripciones";
+    private static final String PANEL_USUARIOS = "usuarios";
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel panelContenedor = new JPanel(cardLayout);
@@ -52,6 +53,7 @@ public class VistaPrincipalSwing extends JFrame {
     private final VistaPeriodo vistaPeriodo = new VistaPeriodo();
     private final VistaGrupo vistaGrupo = new VistaGrupo();
     private final VistaInscripcionSwing vistaInscripcion = new VistaInscripcionSwing();
+    private final VistaUsuarioSwing vistaUsuario = new VistaUsuarioSwing();
 
     public VistaPrincipalSwing(Usuario usuario, Runnable alCerrarSesion) {
         this.usuario = usuario;
@@ -72,6 +74,7 @@ public class VistaPrincipalSwing extends JFrame {
         panelContenedor.add(vistaPeriodo, PANEL_PERIODOS);
         panelContenedor.add(vistaGrupo, PANEL_GRUPOS);
         panelContenedor.add(vistaInscripcion, PANEL_INSCRIPCIONES);
+        panelContenedor.add(vistaUsuario, PANEL_USUARIOS);
 
         setLayout(new BorderLayout());
         add(panelContenedor, BorderLayout.CENTER);
@@ -150,7 +153,7 @@ public class VistaPrincipalSwing extends JFrame {
             cardLayout.show(panelContenedor, PANEL_MATERIAS);
         });
         menuMaterias.add(itemGestionMaterias);
-
+        //Menu Periodos
         JMenu menuPeriodos = crearMenu("Periodos");
         JMenuItem itemGestionPeriodos = new JMenuItem("Gestion de periodos");
         itemGestionPeriodos.addActionListener(e -> {
@@ -158,7 +161,7 @@ public class VistaPrincipalSwing extends JFrame {
             cardLayout.show(panelContenedor, PANEL_PERIODOS);
         });
         menuPeriodos.add(itemGestionPeriodos);
-
+        //Menu Grupos
         JMenu menuGrupos = crearMenu("Grupos");
         JMenuItem itemGestionGrupos = new JMenuItem("Gestion de grupos");
         itemGestionGrupos.addActionListener(e -> {
@@ -166,7 +169,7 @@ public class VistaPrincipalSwing extends JFrame {
             cardLayout.show(panelContenedor, PANEL_GRUPOS);
         });
         menuGrupos.add(itemGestionGrupos);
-
+        //Menu Inscripciones
         JMenu menuInscripciones = crearMenu("Inscripciones");
         JMenuItem itemGestionInscripciones = new JMenuItem("Gestion de inscripciones");
         itemGestionInscripciones.addActionListener(e -> {
@@ -174,6 +177,14 @@ public class VistaPrincipalSwing extends JFrame {
             cardLayout.show(panelContenedor, PANEL_INSCRIPCIONES);
         });
         menuInscripciones.add(itemGestionInscripciones);
+        //Menu Usuarios
+        JMenu menuUsuarios = crearMenu("Usuarios");
+        JMenuItem itemGestionUsuarios = new JMenuItem("Gestion de usuarios");
+        itemGestionUsuarios.addActionListener(e -> {
+            vistaUsuario.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_USUARIOS);
+        });
+        menuUsuarios.add(itemGestionUsuarios);
 
         barra.add(menuArchivo);
         barra.add(menuEstudiantes);
@@ -182,6 +193,11 @@ public class VistaPrincipalSwing extends JFrame {
         barra.add(menuPeriodos);
         barra.add(menuGrupos);
         barra.add(menuInscripciones);
+
+        // Exclusivo para el ADMINISTRADOR: gestión y enlace de cuentas de usuario
+        if (usuario != null && "ADMIN".equalsIgnoreCase(usuario.getRol())) {
+            barra.add(menuUsuarios);
+        }
         setJMenuBar(barra);
     }
 
