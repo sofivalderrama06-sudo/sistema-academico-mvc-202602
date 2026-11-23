@@ -37,10 +37,14 @@ import com.uniajc.controlador.ControladorMateria;
 import com.uniajc.modelo.Docente;
 import com.uniajc.modelo.Grupo;
 import com.uniajc.modelo.Materia;
+import com.uniajc.modelo.Usuario;
+import com.uniajc.util.PermisoManager;
 
 /**
  * Vista Swing para consultar y administrar grupos.
- * La vista captura las acciones del usuario y delega las operaciones al controlador.
+ * Incorpora Control de Acceso Basado en Roles (RBAC):
+ * - ADMIN: Gestión completa (crear, editar, eliminar y listar grupos).
+ * - DOCENTE: Consulta exclusivamente los grupos que tiene asignados a su cargo.
  */
 public class VistaGrupo extends JPanel implements Vista {
 
@@ -59,21 +63,36 @@ public class VistaGrupo extends JPanel implements Vista {
     private final ControladorMateria controladorMateria = new ControladorMateria();
     private final ControladorDocente controladorDocente = new ControladorDocente();
 
+    private final Usuario usuarioActual;
+    private int idDocenteVinculado;
+
     private JTable tabla;
     private DefaultTableModel modeloTabla;
     private Map<Integer, String> nombresMaterias = new HashMap<>();
     private Map<Integer, String> nombresDocentes = new HashMap<>();
     private JTextField textoBusqueda;
     private JDialog dialogoFormulario;
-    // Combos que almacenan los objetos completos (Materia/Docente) para obtener sus IDs al guardar,
-    // pero muestran solo el nombre en la interfaz gracias al renderer personalizado.
     private JComboBox<Materia> campoIdMateria;
     private JComboBox<Docente> campoIdDocente;
     private JTextField campoAula;
     private JTextField campoHorario;
     private int idEnEdicion;
 
+    // Botones de acción del panel inferior
+    private JButton botonRegistrar;
+    private JButton botonEditar;
+    private JButton botonEliminar;
+    private JButton botonRefrescar;
+
     public VistaGrupo() {
+        this(null);
+    }
+
+    public VistaGrupo(Usuario usuario) {
+        this.usuarioActual = usuario;
+        if (usuario != null && usuario.getCorreo() != null) {
+            this.idDocenteVinculado = PermisoManager.obtenerIdDocenteVinculado(usuario.getCorreo());
+        }
         initComponents();
         cargarGrupos();
     }
@@ -162,17 +181,26 @@ public class VistaGrupo extends JPanel implements Vista {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
         panel.setBackground(COLOR_SECUNDARIO);
 
-        JButton botonRegistrar = crearBoton("Registrar", COLOR_EXITO);
+        botonRegistrar = crearBoton("Registrar", COLOR_EXITO);
         botonRegistrar.addActionListener(e -> abrirFormulario(false));
 
-        JButton botonEditar = crearBoton("Editar", COLOR_PRIMARIO);
+        botonEditar = crearBoton("Editar", COLOR_PRIMARIO);
         botonEditar.addActionListener(e -> abrirFormulario(true));
 
-        JButton botonEliminar = crearBoton("Eliminar", COLOR_ACENTO);
+        botonEliminar = crearBoton("Eliminar", COLOR_ACENTO);
         botonEliminar.addActionListener(e -> eliminarGrupo());
 
-        JButton botonRefrescar = crearBoton("Refrescar", COLOR_NEUTRO);
+        botonRefrescar = crearBoton("Refrescar", COLOR_NEUTRO);
         botonRefrescar.addActionListener(e -> cargarGrupos());
+
+        String rol = usuarioActual != null && usuarioActual.getRol() != null ? usuarioActual.getRol() : "ADMIN";
+
+        // Si el usuario no tiene permisos de administración de grupos (ej. DOCENTE), ocultamos acciones de escritura
+        if (!PermisoManager.puedeGestionarGrupos(rol)) {
+            botonRegistrar.setVisible(false);
+            botonEditar.setVisible(false);
+            botonEliminar.setVisible(false);
+        }
 
         panel.add(botonRegistrar);
         panel.add(botonEditar);
@@ -193,10 +221,27 @@ public class VistaGrupo extends JPanel implements Vista {
         return boton;
     }
 
+    /**
+     * Retorna los grupos según el rol del usuario conectado:
+     * - DOCENTE: Solo consulta los grupos que tiene asignados a su cargo.
+     * - ADMIN: Gestión y consulta de todos los grupos.
+     */
+    private List<Grupo> obtenerGruposPermitidos() {
+        List<Grupo> todos = controlador.listar();
+        String rol = usuarioActual != null && usuarioActual.getRol() != null ? usuarioActual.getRol() : "ADMIN";
+
+        if ("DOCENTE".equalsIgnoreCase(rol)) {
+            return todos.stream()
+                    .filter(g -> g.getId_docente() == idDocenteVinculado)
+                    .toList();
+        }
+        return todos;
+    }
+
     private void cargarGrupos() {
         try {
             cargarNombresRelacionados();
-            mostrarEnTabla(controlador.listar());
+            mostrarEnTabla(obtenerGruposPermitidos());
         } catch (RuntimeException ex) {
             mostrarMensaje("Error: " + ex.getMessage(), JOptionPane.ERROR_MESSAGE);
         }
@@ -212,7 +257,7 @@ public class VistaGrupo extends JPanel implements Vista {
         try {
             cargarNombresRelacionados();
             modeloTabla.setRowCount(0);
-            for (Grupo grupo : controlador.listar()) {
+            for (Grupo grupo : obtenerGruposPermitidos()) {
                 if (coincide(grupo.getId(), busqueda)
                         || coincide(grupo.getId_materia(), busqueda)
                         || coincide(grupo.getId_docente(), busqueda)

@@ -1,32 +1,15 @@
 package com.uniajc.vista;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Dialog;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import java.awt.*;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-import javax.swing.BorderFactory;
-import javax.swing.DefaultListCellRenderer;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.JTextField;
+import javax.swing.*;
 import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
@@ -34,10 +17,29 @@ import javax.swing.table.DefaultTableModel;
 import com.uniajc.controlador.ControladorEstudiante;
 import com.uniajc.controlador.ControladorGrupo;
 import com.uniajc.controlador.ControladorInscripcion;
+import com.uniajc.controlador.ControladorMateria;
 import com.uniajc.modelo.Estudiante;
 import com.uniajc.modelo.Grupo;
 import com.uniajc.modelo.Inscripcion;
+import com.uniajc.modelo.Materia;
+import com.uniajc.modelo.Usuario;
+import com.uniajc.util.PermisoManager;
 
+/**
+ * ============================================================================
+ * CAPA DE VISTA (View Layer - MVC con Swing)
+ * ============================================================================
+ * RESPONSABILIDAD EXCLUSIVA:
+ * 1. Renderizar la interfaz gráfica de usuario (tablas, formularios, botones).
+ * 2. Capturar eventos del usuario (clics, textos, selecciones de combos).
+ * 3. Aplicar Control de Acceso Basado en Roles (RBAC) para ocultar/habilitar componentes.
+ * 4. Despachar las acciones del usuario invocando a los CONTROLADORES pertinentes.
+ * 
+ * REGLA DE SEPARACIÓN DE CAPAS:
+ * - NO se conecta directamente a la base de datos ni importa clases DAO (estricto MVC).
+ * - Se comunica únicamente a través de ControladorInscripcion, ControladorGrupo, etc.
+ * - Toda la lógica de negocio y SQL está delegada a las capas de Servicio y DAO.
+ */
 public class VistaInscripcionSwing extends JPanel implements Vista {
 
     private static final Color COLOR_PRIMARIO = new Color(41, 128, 185);
@@ -46,27 +48,55 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
     private static final Color COLOR_NEUTRO = new Color(149, 165, 166);
     private static final Color COLOR_ACENTO = new Color(231, 76, 60);
 
-    private static final String[] COLUMNAS = {"ID", "Estudiante", "Grupo", "Nota", "Estado", "id_estudiante", "id_grupo"};
+    // Columnas de la tabla: se incluye explícitamente "Materia" para consulta de estudiantes y docentes
+    private static final String[] COLUMNAS = {
+            "ID", "Estudiante", "Materia", "Grupo / Horario", "Nota", "Estado", "id_estudiante", "id_grupo"
+    };
 
+    // CONTROLADORES: Únicos puntos de comunicación con la capa de negocio
     private final ControladorInscripcion controlador = new ControladorInscripcion();
     private final ControladorEstudiante controladorEstudiante = new ControladorEstudiante();
     private final ControladorGrupo controladorGrupo = new ControladorGrupo();
+    private final ControladorMateria controladorMateria = new ControladorMateria();
 
     private final Map<Integer, String> nombresEstudiantes = new HashMap<>();
-    private final Map<Integer, String> nombresGrupos = new HashMap<>();
+    private final Map<Integer, String> nombresMaterias = new HashMap<>();
+    private final Map<Integer, Grupo> mapaGrupos = new HashMap<>();
+    private final Map<Integer, String> datosGruposSP = new LinkedHashMap<>();
+
+    // Usuario autenticado y datos de vinculación RBAC
+    private final Usuario usuarioActual;
+    private int idEstudianteVinculado;
+    private int idDocenteVinculado;
 
     private JTable tabla;
     private DefaultTableModel modeloTabla;
     private JTextField textoBusqueda;
     private JDialog dialogoFormulario;
     private JComboBox<Estudiante> campoIdEstudiante;
-    private JComboBox<Grupo> campoIdGrupo;
+    private JComboBox<String> comboGruposSP;
     private JTextField campoFinalGrade;
     private JComboBox<String> campoStatus;
     private int idEnEdicion;
 
-    /** Construye la vista y carga las inscripciones existentes. */
+    // Botones de acción del panel inferior
+    private JButton botonRegistrar;
+    private JButton botonEditar;
+    private JButton botonEliminar;
+    private JButton botonRefrescar;
+
+    /** Construye la vista por defecto (usado para compatibilidad y pruebas). */
     public VistaInscripcionSwing() {
+        this(null);
+    }
+
+    /** Construye la vista aplicando permisos según el usuario conectado. */
+    public VistaInscripcionSwing(Usuario usuario) {
+        this.usuarioActual = usuario;
+        if (usuario != null && usuario.getCorreo() != null) {
+            this.idEstudianteVinculado = PermisoManager.obtenerIdEstudianteVinculado(usuario.getCorreo());
+            this.idDocenteVinculado = PermisoManager.obtenerIdDocenteVinculado(usuario.getCorreo());
+        }
         initComponents();
         cargarInscripciones();
     }
@@ -143,32 +173,55 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         tabla.getTableHeader().setBackground(COLOR_PRIMARIO);
         tabla.getTableHeader().setForeground(Color.WHITE);
 
+        tabla.removeColumn(tabla.getColumnModel().getColumn(7));
         tabla.removeColumn(tabla.getColumnModel().getColumn(6));
-        tabla.removeColumn(tabla.getColumnModel().getColumn(5));
 
         JScrollPane scroll = new JScrollPane(tabla);
         scroll.setBorder(BorderFactory.createLineBorder(COLOR_PRIMARIO, 2));
-        scroll.setPreferredSize(new Dimension(750, 350));
+        scroll.setPreferredSize(new Dimension(850, 350));
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
 
-    /** Crea los botones para registrar, editar, eliminar y refrescar. */
+    /** Crea los botones para registrar, editar, eliminar y refrescar aplicando RBAC. */
     private JPanel crearPanelBotones() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 15));
         panel.setBackground(COLOR_SECUNDARIO);
 
-        JButton botonRegistrar = crearBoton("Registrar", COLOR_EXITO);
+        botonRegistrar = crearBoton("Registrar", COLOR_EXITO);
         botonRegistrar.addActionListener(e -> abrirFormulario(false));
 
-        JButton botonEditar = crearBoton("Editar", COLOR_PRIMARIO);
+        botonEditar = crearBoton("Editar", COLOR_PRIMARIO);
         botonEditar.addActionListener(e -> abrirFormulario(true));
 
-        JButton botonEliminar = crearBoton("Eliminar", COLOR_ACENTO);
+        botonEliminar = crearBoton("Eliminar", COLOR_ACENTO);
         botonEliminar.addActionListener(e -> eliminarInscripcion());
 
-        JButton botonRefrescar = crearBoton("Refrescar", COLOR_NEUTRO);
+        botonRefrescar = crearBoton("Refrescar", COLOR_NEUTRO);
         botonRefrescar.addActionListener(e -> cargarInscripciones());
+
+        String rol = usuarioActual != null && usuarioActual.getRol() != null ? usuarioActual.getRol() : "ADMIN";
+
+        // ====================================================================
+        // PERMISOS DE BOTONES SEGÚN EL ROL (RBAC)
+        // ====================================================================
+        // 1. Matricular/Registrar: solo ADMIN
+        if (!PermisoManager.puedeCrearInscripcion(rol)) {
+            botonRegistrar.setVisible(false);
+        }
+
+        // 2. Modificar/Calificar: ADMIN y DOCENTE (ESTUDIANTE solo consulta)
+        if (!PermisoManager.puedeEditarInscripcion(rol)) {
+            botonEditar.setVisible(false);
+        } else if ("DOCENTE".equalsIgnoreCase(rol)) {
+            botonEditar.setText("Asignar Nota");
+            botonEditar.setPreferredSize(new Dimension(130, 35));
+        }
+
+        // 3. Eliminar inscripción: solo ADMIN
+        if (!PermisoManager.puedeEliminarInscripcion(rol)) {
+            botonEliminar.setVisible(false);
+        }
 
         panel.add(botonRegistrar);
         panel.add(botonEditar);
@@ -190,17 +243,44 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         return boton;
     }
 
-    /** Carga nombres relacionados y presenta las inscripciones en la tabla. */
+    /**
+     * Retorna las inscripciones filtradas según el rol del usuario conectado:
+     * - ESTUDIANTE: Solo ve las calificaciones de su propio ID de estudiante.
+     * - DOCENTE: Solo ve los estudiantes inscritos en los grupos que él dicta.
+     * - ADMIN: Acceso global a todas las inscripciones del sistema.
+     */
+    private List<Inscripcion> obtenerInscripcionesPermitidas() {
+        List<Inscripcion> todas = controlador.listar();
+        String rol = usuarioActual != null && usuarioActual.getRol() != null ? usuarioActual.getRol() : "ADMIN";
+
+        if ("ESTUDIANTE".equalsIgnoreCase(rol)) {
+            return todas.stream()
+                    .filter(i -> i.getId_estudiante() == idEstudianteVinculado)
+                    .toList();
+        } else if ("DOCENTE".equalsIgnoreCase(rol)) {
+            Set<Integer> gruposDelDocente = controladorGrupo.listar().stream()
+                    .filter(g -> g.getId_docente() == idDocenteVinculado)
+                    .map(Grupo::getId)
+                    .collect(Collectors.toSet());
+
+            return todas.stream()
+                    .filter(i -> gruposDelDocente.contains(i.getId_grupo()))
+                    .toList();
+        }
+        return todas;
+    }
+
+    /** Carga nombres relacionados y presenta las inscripciones autorizadas en la tabla. */
     private void cargarInscripciones() {
         try {
             cargarNombresRelacionados();
-            mostrarEnTabla(controlador.listar());
+            mostrarEnTabla(obtenerInscripcionesPermitidas());
         } catch (RuntimeException ex) {
             mostrarMensaje("Error: " + ex.getMessage(), JOptionPane.ERROR_MESSAGE);
         }
     }
 
-    /** Filtra las inscripciones por sus datos visibles y relacionados. */
+    /** Filtra las inscripciones autorizadas por sus datos visibles y relacionados. */
     private void buscarInscripciones() {
         String busqueda = textoBusqueda.getText().trim().toLowerCase(Locale.ROOT);
         if (busqueda.isEmpty()) {
@@ -211,11 +291,12 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         try {
             cargarNombresRelacionados();
             modeloTabla.setRowCount(0);
-            for (Inscripcion inscripcion : controlador.listar()) {
+            for (Inscripcion inscripcion : obtenerInscripcionesPermitidas()) {
                 if (coincide(inscripcion.getId(), busqueda)
                         || coincide(inscripcion.getId_estudiante(), busqueda)
                         || coincide(inscripcion.getId_grupo(), busqueda)
                         || coincide(nombreEstudiante(inscripcion.getId_estudiante()), busqueda)
+                        || coincide(nombreMateriaPorGrupo(inscripcion.getId_grupo()), busqueda)
                         || coincide(nombreGrupo(inscripcion.getId_grupo()), busqueda)
                         || coincide(inscripcion.getStatus(), busqueda)
                         || coincide(inscripcion.getFinal_grade(), busqueda)) {
@@ -227,16 +308,24 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         }
     }
 
-    /** Actualiza los mapas de nombres usados para presentar estudiantes y grupos. */
+    /** Actualiza los mapas de nombres usados para presentar estudiantes, materias y grupos. */
     private void cargarNombresRelacionados() {
         nombresEstudiantes.clear();
         for (Estudiante estudiante : controladorEstudiante.listar()) {
             nombresEstudiantes.put(estudiante.getId(), estudiante.getNombre() + " " + estudiante.getApellido());
         }
 
-        nombresGrupos.clear();
+        nombresMaterias.clear();
+        for (Materia materia : controladorMateria.listar()) {
+            nombresMaterias.put(materia.getId(), materia.getName());
+        }
+
+        // Obtiene datos de grupos a través del controlador (desacoplamiento MVC)
+        datosGruposSP.clear();
+        mapaGrupos.clear();
+        datosGruposSP.putAll(controladorGrupo.obtenerGruposParaCombo());
         for (Grupo grupo : controladorGrupo.listar()) {
-            nombresGrupos.put(grupo.getId(), descripcionGrupo(grupo));
+            mapaGrupos.put(grupo.getId(), grupo);
         }
     }
 
@@ -250,14 +339,29 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         return nombresEstudiantes.getOrDefault(idEstudiante, "Estudiante #" + idEstudiante);
     }
 
-    /** Obtiene la descripción guardada del grupo asociado. */
-    private String nombreGrupo(int idGrupo) {
-        return nombresGrupos.getOrDefault(idGrupo, "");
+    /** Obtiene el nombre de la materia a la que pertenece el grupo para mostrarla al estudiante/docente. */
+    private String nombreMateriaPorGrupo(int idGrupo) {
+        Grupo g = mapaGrupos.get(idGrupo);
+        if (g != null) {
+            return nombresMaterias.getOrDefault(g.getId_materia(), "Materia #" + g.getId_materia());
+        }
+        return "Materia no asignada";
     }
 
-    /** Forma la descripción del grupo con el aula y el horario almacenados. */
+    /** Obtiene la descripción del aula y horario del grupo asociado. */
+    private String nombreGrupo(int idGrupo) {
+        Grupo g = mapaGrupos.get(idGrupo);
+        if (g != null) {
+            return g.getClassroom() + " (" + g.getSchedule() + ")";
+        }
+        return "Grupo #" + idGrupo;
+    }
+
+    /** Forma la descripción del grupo para los combos incluyendo la materia, aula y horario. */
     private String descripcionGrupo(Grupo grupo) {
-        return grupo.getClassroom() + " / " + grupo.getSchedule();
+        String materia = nombresMaterias.getOrDefault(grupo.getId_materia(), "");
+        String aulaHorario = grupo.getClassroom() + " / " + grupo.getSchedule();
+        return materia.isEmpty() ? aulaHorario : materia + " [" + aulaHorario + "]";
     }
 
     /** Reemplaza el contenido de la tabla por la lista de inscripciones recibida. */
@@ -268,11 +372,12 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         }
     }
 
-    /** Agrega a la tabla una inscripción y mantiene sus IDs para edición. */
+    /** Agrega a la tabla una inscripción incluyendo la columna Materia y mantiene sus IDs para edición. */
     private void agregarFila(Inscripcion inscripcion) {
         modeloTabla.addRow(new Object[] {
                 inscripcion.getId(),
                 nombreEstudiante(inscripcion.getId_estudiante()),
+                nombreMateriaPorGrupo(inscripcion.getId_grupo()),
                 nombreGrupo(inscripcion.getId_grupo()),
                 inscripcion.getFinal_grade(),
                 inscripcion.getStatus(),
@@ -297,25 +402,30 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
             }
             int filaModelo = tabla.convertRowIndexToModel(fila);
             idEnEdicion = ((Number) modeloTabla.getValueAt(filaModelo, 0)).intValue();
-            idEstudiante = ((Number) modeloTabla.getValueAt(filaModelo, 5)).intValue();
-            idGrupo = ((Number) modeloTabla.getValueAt(filaModelo, 6)).intValue();
-            nota = ((Number) modeloTabla.getValueAt(filaModelo, 3)).doubleValue();
-            estado = String.valueOf(modeloTabla.getValueAt(filaModelo, 4));
+            // Índice 1: Estudiante | Índice 2: Materia | Índice 3: Grupo / Horario
+            nota = ((Number) modeloTabla.getValueAt(filaModelo, 4)).doubleValue();
+            estado = String.valueOf(modeloTabla.getValueAt(filaModelo, 5));
+            idEstudiante = ((Number) modeloTabla.getValueAt(filaModelo, 6)).intValue();
+            idGrupo = ((Number) modeloTabla.getValueAt(filaModelo, 7)).intValue();
         }
 
         List<Estudiante> estudiantes;
-        List<Grupo> grupos;
         try {
             estudiantes = controladorEstudiante.listar();
-            grupos = controladorGrupo.listar();
         } catch (RuntimeException ex) {
-            mostrarMensaje("Error al cargar estudiantes o grupos: " + ex.getMessage(), JOptionPane.ERROR_MESSAGE);
+            mostrarMensaje("Error al cargar estudiantes: " + ex.getMessage(), JOptionPane.ERROR_MESSAGE);
             return;
+        }
+
+        String rol = usuarioActual != null && usuarioActual.getRol() != null ? usuarioActual.getRol() : "ADMIN";
+        String tituloTexto = esEdicion ? "Editar inscripcion" : "Registrar inscripcion";
+        if ("DOCENTE".equalsIgnoreCase(rol)) {
+            tituloTexto = "Asignar / Registrar Calificación";
         }
 
         dialogoFormulario = new JDialog(
                 SwingUtilities.getWindowAncestor(this),
-                esEdicion ? "Editar inscripcion" : "Registrar inscripcion",
+                tituloTexto,
                 Dialog.ModalityType.APPLICATION_MODAL);
         dialogoFormulario.setSize(500, 330);
         dialogoFormulario.setLocationRelativeTo(this);
@@ -331,7 +441,7 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
-        JLabel titulo = new JLabel(esEdicion ? "Editar inscripcion" : "Registrar inscripcion");
+        JLabel titulo = new JLabel(tituloTexto);
         titulo.setFont(new Font("Segoe UI", Font.BOLD, 18));
         titulo.setForeground(COLOR_PRIMARIO);
         formulario.add(titulo, gbc);
@@ -339,11 +449,23 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         gbc.gridwidth = 1;
         campoIdEstudiante = crearComboEstudiante(estudiantes, idEstudiante);
         agregarCombo(formulario, gbc, 1, "Estudiante:", campoIdEstudiante);
-        campoIdGrupo = crearComboGrupo(grupos, idGrupo);
-        agregarCombo(formulario, gbc, 2, "Grupo:", campoIdGrupo);
+
+        // Usa la función almacenada para poblar el combo de grupos
+        cargarComboGruposSP(idGrupo);
+        agregarCombo(formulario, gbc, 2, "Grupo:", comboGruposSP);
+
         campoFinalGrade = agregarCampo(formulario, gbc, 3, "Nota final:", String.valueOf(nota));
+
+        // Combobox de estado: selección manual para ambos roles (ADMIN y DOCENTE)
         campoStatus = crearComboEstado(estado);
+        campoStatus.setEnabled(true);
         agregarComboEstado(formulario, gbc, 4, "Estado:", campoStatus);
+
+        // Si el usuario es DOCENTE, no altera la matrícula (estudiante ni grupo), pero SÍ califica y define estado manualmente
+        if (!PermisoManager.puedeModificarEstructuraInscripcion(rol)) {
+            campoIdEstudiante.setEnabled(false);
+            comboGruposSP.setEnabled(false);
+        }
 
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
         panelBotones.setBackground(Color.WHITE);
@@ -357,8 +479,9 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         panelBotones.add(botonGuardar);
         panelBotones.add(botonCancelar);
 
+        int filaBotones = 5;
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = filaBotones;
         gbc.gridwidth = 2;
         formulario.add(panelBotones, gbc);
 
@@ -408,31 +531,21 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         return combo;
     }
 
-    /** Crea un combo de grupos y preselecciona el grupo asociado al editar. */
-    private JComboBox<Grupo> crearComboGrupo(List<Grupo> grupos, int idSeleccionado) {
-        JComboBox<Grupo> combo = new JComboBox<>();
-        combo.addItem(null);
-        Grupo seleccionado = null;
-        for (Grupo grupo : grupos) {
-            combo.addItem(grupo);
-            if (grupo.getId() == idSeleccionado) {
-                seleccionado = grupo;
+    /** Carga el combo de grupos usando la función almacenada fn_consultar_grupos_combobox vía Controlador. */
+    private void cargarComboGruposSP(int idSeleccionado) {
+        datosGruposSP.clear();
+        datosGruposSP.putAll(controladorGrupo.obtenerGruposParaCombo());
+
+        comboGruposSP = new JComboBox<>();
+        comboGruposSP.addItem(null);
+        String seleccionado = null;
+        for (Map.Entry<Integer, String> entry : datosGruposSP.entrySet()) {
+            comboGruposSP.addItem(entry.getValue());
+            if (entry.getKey() == idSeleccionado) {
+                seleccionado = entry.getValue();
             }
         }
-        combo.setSelectedItem(seleccionado);
-        combo.setRenderer(new DefaultListCellRenderer() {
-            /** Muestra en el combo únicamente el aula y horario del grupo. */
-            @Override
-            public Component getListCellRendererComponent(
-                    JList<?> lista, Object valor, int indice, boolean seleccionado, boolean foco) {
-                super.getListCellRendererComponent(lista, valor, indice, seleccionado, foco);
-                setText(valor == null
-                        ? "Seleccione un grupo"
-                        : descripcionGrupo((Grupo) valor));
-                return this;
-            }
-        });
-        return combo;
+        comboGruposSP.setSelectedItem(seleccionado);
     }
 
     /** Crea el combo con los estados permitidos y selecciona el estado actual. */
@@ -471,12 +584,29 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
         panel.add(combo, gbc);
     }
 
-    /** Valida los campos del formulario y registra o actualiza la inscripción. */
+    /**
+     * Valida los campos del formulario y registra o actualiza la inscripción.
+     *   - DOCENTE editando → usa UPDATE directo (SQL plano) vía controlador.actualizar().
+     *   - ADMIN registrando → llama al SP sp_inscribir_estudiante vía
+     *     controlador.registrarConProcedimiento(). El SP valida unicidad en BD.
+     *   - ADMIN editando → usa el UPDATE directo (SQL plano) vía controlador.actualizar().
+     */
     private void guardarInscripcion(boolean esEdicion) {
         Estudiante estudiante = (Estudiante) campoIdEstudiante.getSelectedItem();
-        Grupo grupo = (Grupo) campoIdGrupo.getSelectedItem();
 
-        if (estudiante == null || grupo == null) {
+        // Obtener ID del grupo desde el combo SP (buscar por descripción)
+        String grupoDesc = (String) comboGruposSP.getSelectedItem();
+        Integer idGrupo = null;
+        if (grupoDesc != null) {
+            for (Map.Entry<Integer, String> entry : datosGruposSP.entrySet()) {
+                if (entry.getValue().equals(grupoDesc)) {
+                    idGrupo = entry.getKey();
+                    break;
+                }
+            }
+        }
+
+        if (estudiante == null || idGrupo == null) {
             JOptionPane.showMessageDialog(dialogoFormulario,
                     "Selecciona un estudiante y un grupo.",
                     "Validacion",
@@ -507,10 +637,17 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
 
         try {
             if (esEdicion) {
-                controlador.actualizar(idEnEdicion, estudiante.getId(), grupo.getId(), nota, estado);
+                // ACTUALIZACIÓN MANUAL: Aplica para ambos roles (ADMIN y DOCENTE)
+                // Permite registrar la nota y seleccionar el estado manualmente en el ComboBox
+                controlador.actualizar(idEnEdicion, estudiante.getId(), idGrupo, nota, estado);
+
             } else {
-                controlador.registrar(estudiante.getId(), grupo.getId(), nota, estado);
+                // PROCEDIMIENTO ALMACENADO: sp_inscribir_estudiante
+                // Matricula el estudiante nuevo delegando al SP con validaciones de unicidad en BD
+                controlador.registrarConProcedimiento(
+                        estudiante.getId(), idGrupo, nota, estado);
             }
+
             dialogoFormulario.dispose();
             cargarInscripciones();
         } catch (RuntimeException ex) {
@@ -537,7 +674,9 @@ public class VistaInscripcionSwing extends JPanel implements Vista {
 
         if (opcion == JOptionPane.YES_OPTION) {
             try {
-                controlador.eliminar(id);
+                // PROCEDIMIENTO ALMACENADO: sp_eliminar_inscripcion_segura
+                // Valida en base de datos que no se pueda eliminar una inscripción con estado APROBADO
+                controlador.eliminarConProcedimiento(id);
                 cargarInscripciones();
             } catch (RuntimeException ex) {
                 mostrarMensaje("Error: " + ex.getMessage(), JOptionPane.ERROR_MESSAGE);

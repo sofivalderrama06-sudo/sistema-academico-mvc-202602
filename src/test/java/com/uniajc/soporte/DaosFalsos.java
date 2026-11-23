@@ -9,11 +9,13 @@ import java.util.Optional;
 import com.uniajc.dao.DocenteDao;
 import com.uniajc.dao.EstudianteDao;
 import com.uniajc.dao.GrupoDao;
+import com.uniajc.dao.InscripcionDao;
 import com.uniajc.dao.MateriaDao;
 import com.uniajc.dao.UsuarioDao;
 import com.uniajc.modelo.Docente;
 import com.uniajc.modelo.Estudiante;
 import com.uniajc.modelo.Grupo;
+import com.uniajc.modelo.Inscripcion;
 import com.uniajc.modelo.Materia;
 import com.uniajc.modelo.Usuario;
 
@@ -178,6 +180,20 @@ public final class DaosFalsos {
             datos.removeIf(g -> g.getId() == id);
             eliminados++;
         }
+
+        /**
+         * Simula la función almacenada fn_consultar_grupos_combobox():
+         * Genera en memoria el mapa de grupos listo para llenar un JComboBox.
+         */
+        @Override
+        public java.util.Map<Integer, String> obtenerGruposParaCombo() {
+            java.util.Map<Integer, String> mapa = new java.util.LinkedHashMap<>();
+            for (Grupo g : datos) {
+                mapa.put(g.getId(), "Materia #" + g.getId_materia() + " - Docente #" + g.getId_docente()
+                        + " [Aula: " + g.getClassroom() + " | Horario: " + g.getSchedule() + "]");
+            }
+            return mapa;
+        }
     }
 
     // DAO FALSO: USUARIOS (Soporta validaciones de BCrypt y login)
@@ -243,6 +259,94 @@ public final class DaosFalsos {
         public void eliminar(int id) {
             eliminados++;
             datos.removeIf(u -> u.getId().equals(String.valueOf(id)));
+        }
+    }
+
+    // DAO FALSO: INSCRIPCIONES (Soporta validaciones de notas, estados y duplicidad)
+    public static class InscripcionDaoFalso extends InscripcionDao {
+        public int guardados;
+        public int actualizados;
+        public int eliminados;
+        public final List<Inscripcion> datos = new ArrayList<>(); // Almacén en RAM
+
+        /**
+         * Permite precargar inscripciones de prueba encadenando llamadas:
+         * dao.con(1, 10, 20, 4.5, "ACTIVO").con(2, ...);
+         */
+        public InscripcionDaoFalso con(int id, int idEstudiante, int idGrupo, double finalGrade, String status) {
+            datos.add(new Inscripcion(id, idEstudiante, idGrupo, finalGrade, status, null));
+            return this;
+        }
+
+        @Override
+        public void guardar(Inscripcion inscripcion) {
+            datos.add(inscripcion);
+            guardados++;
+        }
+
+        @Override
+        public List<Inscripcion> obtenerTodos() {
+            return new ArrayList<>(datos);
+        }
+
+        @Override
+        public Optional<Inscripcion> buscarPorId(int id) {
+            return datos.stream().filter(i -> i.getId() == id).findFirst();
+        }
+
+        @Override
+        public Optional<Inscripcion> buscarPorEstudianteYGrupo(int idEstudiante, int idGrupo) {
+            return datos.stream()
+                    .filter(i -> i.getId_estudiante() == idEstudiante && i.getId_grupo() == idGrupo)
+                    .findFirst();
+        }
+
+        @Override
+        public void actualizar(Inscripcion inscripcion) {
+            datos.removeIf(i -> i.getId() == inscripcion.getId());
+            datos.add(inscripcion);
+            actualizados++;
+        }
+
+        @Override
+        public void eliminar(int id) {
+            datos.removeIf(i -> i.getId() == id);
+            eliminados++;
+        }
+
+        // OVERRIDES: Procedimientos Almacenados
+
+        /**
+         * Simula sp_eliminar_inscripcion_segura:
+         * Valida que no se pueda eliminar una inscripción que ya ha sido 'APROBADA'.
+         */
+        @Override
+        public void eliminarConSP(int idInscripcion) {
+            Optional<Inscripcion> encontrada = datos.stream()
+                    .filter(i -> i.getId() == idInscripcion)
+                    .findFirst();
+
+            if (!encontrada.isPresent()) {
+                throw new RuntimeException("No se puede eliminar: la inscripción " + idInscripcion + " no existe.");
+            }
+
+            if ("APROBADO".equalsIgnoreCase(encontrada.get().getStatus())) {
+                throw new RuntimeException("Operación denegada: No se puede eliminar una inscripción que ya ha sido APROBADA en el historial académico.");
+            }
+
+            datos.removeIf(i -> i.getId() == idInscripcion);
+            eliminados++;
+        }
+
+        /**
+         * Simula sp_inscribir_estudiante:
+         * Agrega la inscripción con un ID incremental y el estado indicado.
+         */
+        @Override
+        public void inscribirEstudianteConSP(int idEstudiante, int idGrupo, double notaFinal, String status) {
+            int nuevoId = datos.size() + 1;
+            datos.add(new Inscripcion(nuevoId, idEstudiante, idGrupo, notaFinal, status, null));
+            guardados++;
         }
     }
 }

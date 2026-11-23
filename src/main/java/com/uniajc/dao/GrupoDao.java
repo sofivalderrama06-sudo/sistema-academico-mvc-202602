@@ -137,4 +137,23 @@ public class GrupoDao {
                 rs.getString("schedule"),
                 rs.getTimestamp("created_at"));
     }
+
+    /**
+     * PROCEDIMIENTO / FUNCIÓN ALMACENADA: fn_consultar_grupos_combobox()
+     * Obtiene los grupos con sus nombres de materia, docente, aula y horario
+     * formateados desde la base de datos para alimentar componentes JComboBox.
+     */
+    public java.util.Map<Integer, String> obtenerGruposParaCombo() {
+        java.util.Map<Integer, String> mapa = new java.util.LinkedHashMap<>();
+        String sql = "SELECT id_grupo, texto_combobox FROM \"practica-mvc\".fn_consultar_grupos_combobox()";
+        try (PreparedStatement ps = obtenerConexion().prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                mapa.put(rs.getInt("id_grupo"), rs.getString("texto_combobox"));
+            }
+        } catch (SQLException ex) {
+            throw new RuntimeException("Error al consultar función fn_consultar_grupos_combobox: " + ex.getMessage(), ex);
+        }
+        return mapa;
+    }
 }

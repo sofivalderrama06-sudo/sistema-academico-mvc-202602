@@ -2,6 +2,7 @@ package com.uniajc.soporte;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Proxy;
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,9 +16,7 @@ import java.util.Map;
 import com.uniajc.db.DatabaseConexion;
 
 /**
- * ============================================================================
  * DOBLES DE PRUEBA: BdFalsa (Simulador de Conexión JDBC)
- * ============================================================================
  * ¿Por qué existe esta clase?
  * 1. Simulación de Base de Datos: Intercepta las llamadas de JDBC (Connection,
  *    PreparedStatement y ResultSet) usando Proxies dinámicos de Java.
@@ -42,7 +41,7 @@ public class BdFalsa {
                 Connection.class.getClassLoader(),
                 new Class<?>[]{Connection.class},
                 (proxy, metodo, argumentos) -> {
-                    if ("prepareStatement".equals(metodo.getName())) {
+                    if ("prepareStatement".equals(metodo.getName()) || "prepareCall".equals(metodo.getName())) {
                         if (fallarAlPreparar) {
                             throw new SQLException("conexion de prueba");
                         }
@@ -115,9 +114,9 @@ public class BdFalsa {
     private PreparedStatement crearPreparedStatement(String sql) {
         sqls.add(sql);
         List<Object> parametrosLocales = new ArrayList<>();
-        return (PreparedStatement) Proxy.newProxyInstance(
+        return (CallableStatement) Proxy.newProxyInstance(
                 PreparedStatement.class.getClassLoader(),
-                new Class<?>[]{PreparedStatement.class},
+                new Class<?>[]{CallableStatement.class, PreparedStatement.class},
                 (proxy, metodo, argumentos) -> {
                     String nombre = metodo.getName();
                     if (nombre.startsWith("set") && argumentos != null && argumentos.length >= 2) {
@@ -132,10 +131,10 @@ public class BdFalsa {
                         parametros = new ArrayList<>(parametrosLocales);
                         return crearResultSet();
                     }
-                    if ("executeUpdate".equals(nombre)) {
+                    if ("executeUpdate".equals(nombre) || "execute".equals(nombre)) {
                         parametros = new ArrayList<>(parametrosLocales);
                         actualizacionesEjecutadas++;
-                        return 1;
+                        return "execute".equals(nombre) ? true : 1;
                     }
                     if ("close".equals(nombre)) {
                         return null;
@@ -190,6 +189,15 @@ public class BdFalsa {
                     if ("getTimestamp".equals(nombre)) {
                         return valor == null ? null : (Timestamp) valor;
                     }
+                    if ("getDouble".equals(nombre)) {
+                        if (valor == null) {
+                            return 0.0;
+                        }
+                        if (valor instanceof Number) {
+                            return ((Number) valor).doubleValue();
+                        }
+                        return Double.parseDouble(String.valueOf(valor));
+                    }
                     if ("getObject".equals(nombre)) {
                         return valor;
                     }
@@ -209,6 +217,12 @@ public class BdFalsa {
         }
         if (tipo == long.class) {
             return 0L;
+        }
+        if (tipo == double.class) {
+            return 0.0;
+        }
+        if (tipo == float.class) {
+            return 0.0f;
         }
         return 0;
     }

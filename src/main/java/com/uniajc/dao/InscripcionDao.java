@@ -1,5 +1,6 @@
 package com.uniajc.dao;
 
+import java.sql.CallableStatement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +12,21 @@ import java.util.Optional;
 import com.uniajc.db.DatabaseConexion;
 import com.uniajc.modelo.Inscripcion;
 
+/**
+ * ============================================================================
+ * CAPA DE ACCESO A DATOS (DAO - Data Access Object)
+ * ============================================================================
+ * RESPONSABILIDAD EXCLUSIVA:
+ * 1. Comunicación directa con PostgreSQL (Neon) mediante JDBC estándar.
+ * 2. Ejecutar sentencias SQL (INSERT, SELECT, UPDATE, DELETE).
+ * 3. Invocar Procedimientos Almacenados y Funciones usando java.sql.CallableStatement.
+ * 4. Mapear filas (ResultSet) a objetos del Modelo (Inscripcion).
+ * 
+ * REGLA DE SEPARACIÓN DE CAPAS:
+ * - NO contiene lógica de negocio ni validaciones de campos (eso pertenece al Servicio).
+ * - NO interactúa con la interfaz gráfica Swing (eso pertenece a la Vista).
+ * - Convierte las excepciones SQLException en RuntimeException para desacoplar las capas superiores.
+ */
 public class InscripcionDao {
 
     private static final String TABLA = "\"practica-mvc\".inscripciones";
@@ -133,5 +149,37 @@ public class InscripcionDao {
                 rs.getString("status"),
                 rs.getTimestamp("created_at")
         );
+    }
+
+    /**
+     * PROCEDIMIENTO ALMACENADO: sp_eliminar_inscripcion_segura
+     * Invoca el procedimiento en PostgreSQL que valida que la inscripción exista
+     * y que NO esté en estado 'APROBADO' antes de borrarla (protege historial académico).
+     */
+    public void eliminarConSP(int idInscripcion) {
+        String sql = "CALL \"practica-mvc\".sp_eliminar_inscripcion_segura(?)";
+        try (CallableStatement cs = obtenerConexion().prepareCall(sql)) {
+            cs.setInt(1, idInscripcion);
+            cs.execute();
+        } catch (SQLException ex) {
+            throw new RuntimeException("Error al ejecutar sp_eliminar_inscripcion_segura: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * PROCEDIMIENTO ALMACENADO: sp_inscribir_estudiante
+     * Invoca el procedimiento que realiza la matrícula con validaciones en base de datos.
+     */
+    public void inscribirEstudianteConSP(int idEstudiante, int idGrupo, double notaFinal, String status) {
+        String sql = "CALL \"practica-mvc\".sp_inscribir_estudiante(?, ?, ?, ?)";
+        try (CallableStatement cs = obtenerConexion().prepareCall(sql)) {
+            cs.setInt(1, idEstudiante);
+            cs.setInt(2, idGrupo);
+            cs.setDouble(3, notaFinal);
+            cs.setString(4, status);
+            cs.execute();
+        } catch (SQLException ex) {
+            throw new RuntimeException("Error al ejecutar sp_inscribir_estudiante: " + ex.getMessage(), ex);
+        }
     }
 }

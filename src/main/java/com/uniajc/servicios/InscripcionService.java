@@ -6,6 +6,24 @@ import java.util.Optional;
 import com.uniajc.dao.InscripcionDao;
 import com.uniajc.modelo.Inscripcion;
 
+/**
+ * ============================================================================
+ * CAPA DE SERVICIO / LÓGICA DE NEGOCIO (Service Layer)
+ * ============================================================================
+ * RESPONSABILIDAD EXCLUSIVA:
+ * 1. Aplicar las Reglas de Negocio del Dominio:
+ *    - Rango válido de notas (0.0 a 5.0).
+ *    - Estados permitidos ('ACTIVO', 'APROBADO', 'REPROBADO', 'CANCELADO').
+ *    - Llaves foráneas obligatorias (id_estudiante > 0, id_grupo > 0).
+ *    - Unicidad: un estudiante no puede estar dos veces en el mismo grupo.
+ * 2. Lanzar excepciones descriptivas (IllegalArgumentException) ante datos inválidos.
+ * 3. Orquestar el flujo antes de delegar la persistencia al DAO.
+ * 
+ * REGLA DE SEPARACIÓN DE CAPAS:
+ * - NO contiene código SQL, JDBC, Connection ni CallableStatement (eso pertenece al DAO).
+ * - NO contiene código Swing, botones ni diálogos gráficos (eso pertenece a la Vista).
+ * - Es 100% testeable con DaosFalsos en memoria sin tocar bases de datos.
+ */
 public class InscripcionService {
 
     private final InscripcionDao inscripcionDao;
@@ -55,6 +73,37 @@ public class InscripcionService {
             throw new IllegalArgumentException("Inscripcion no encontrada.");
         }
         inscripcionDao.eliminar(id);
+    }
+
+    /**
+     * Elimina una inscripción ejecutando el procedimiento almacenado sp_eliminar_inscripcion_segura.
+     * En base de datos valida que la inscripción exista y que no esté en estado 'APROBADO'.
+     */
+    public void eliminarConProcedimiento(int idInscripcion) {
+        if (idInscripcion <= 0) {
+            throw new IllegalArgumentException("ID invalido.");
+        }
+        if (!inscripcionDao.buscarPorId(idInscripcion).isPresent()) {
+            throw new IllegalArgumentException("Inscripcion no encontrada.");
+        }
+        inscripcionDao.eliminarConSP(idInscripcion);
+    }
+
+    /**
+     * Matricula un estudiante ejecutando el procedimiento almacenado sp_inscribir_estudiante.
+     */
+    public void registrarConProcedimiento(int idEstudiante, int idGrupo, double nota, String status) {
+        if (idEstudiante <= 0) {
+            throw new IllegalArgumentException("El estudiante es obligatorio.");
+        }
+        if (idGrupo <= 0) {
+            throw new IllegalArgumentException("El grupo es obligatorio.");
+        }
+        if (nota < 0 || nota > 5) {
+            throw new IllegalArgumentException("La nota final debe estar entre 0 y 5.");
+        }
+        String estado = (status == null || status.trim().isEmpty()) ? "ACTIVO" : status.trim().toUpperCase();
+        inscripcionDao.inscribirEstudianteConSP(idEstudiante, idGrupo, nota, estado);
     }
 
     /** Valida las FK, el rango de nota y los estados permitidos. */

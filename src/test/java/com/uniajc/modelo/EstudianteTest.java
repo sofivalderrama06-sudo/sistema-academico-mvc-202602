@@ -65,6 +65,6 @@ public class EstudianteTest {
         Estudiante e = new Estudiante(8, "Sofia", "Lopez", "sofia@uni.edu.co");
         String texto = e.toString();
 
-        assertEquals("Estudiante [id=8, nombre=Sofia, apellido=Lopez, email=sofia@uni.edu.co]", texto);
+        assertEquals("8 | Sofia Lopez | sofia@uni.edu.co", texto);
     }
 }

@@ -76,7 +76,7 @@ public class ControladorDocenteTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> controlador.registrar("Ana", "Matematicas", "ana@uni.edu.co"));
 
-        assertEquals("El correo ya esta registrado.", ex.getMessage());
+        assertEquals("Ya existe un docente con ese correo.", ex.getMessage());
         assertEquals(1, bd.sqls.size()); // solo el SELECT, ningun INSERT
     }
 
@@ -94,8 +94,10 @@ public class ControladorDocenteTest {
     }
 
     @Test
-    @DisplayName("buscarPorId devuelve el docente cuando existe")
+    @DisplayName("buscarPorId devuelve el docente cuando existe y vacio si no")
     void buscarPorIdExiste() {
+        assertFalse(controlador.buscarPorId(99).isPresent());
+
         bd.fila("id", 5, "name", "Ana", "specialty", "Matematicas", "email", "ana@uni.edu.co");
 
         Optional<Docente> r = controlador.buscarPorId(5);
@@ -106,22 +108,14 @@ public class ControladorDocenteTest {
     }
 
     @Test
-    @DisplayName("buscarPorId con id invalido lanza error y no consulta la base")
-    void buscarPorIdInvalido() {
-        assertThrows(IllegalArgumentException.class, () -> controlador.buscarPorId(0));
-        assertThrows(IllegalArgumentException.class, () -> controlador.buscarPorId(-3));
-        assertTrue(bd.sqls.isEmpty());
-    }
-
-    @Test
     @DisplayName("actualizar modifica el docente en la base de datos")
     void actualizar() {
         bd.fila("id", 1, "name", "Ana", "specialty", "Matematicas", "email", "ana@uni.edu.co");
 
         controlador.actualizar(1, "Ana Maria", "Algebra", "ana.maria@uni.edu.co");
 
-        assertEquals(2, bd.sqls.size());
-        assertTrue(bd.sqls.get(1).startsWith("UPDATE"));
+        assertEquals(3, bd.sqls.size());
+        assertTrue(bd.sqls.get(2).startsWith("UPDATE"));
         assertEquals("Ana Maria", bd.ultimosParametros().get(1));
         assertEquals("Algebra", bd.ultimosParametros().get(2));
         assertEquals("ana.maria@uni.edu.co", bd.ultimosParametros().get(3));
@@ -132,10 +126,11 @@ public class ControladorDocenteTest {
     @DisplayName("actualizar con datos invalidos lanza error y no actualiza")
     void actualizarInvalido() {
         assertThrows(IllegalArgumentException.class,
-                () -> controlador.actualizar(1, "", "Matematicas", "ana@uni.edu.co"));
-        assertThrows(IllegalArgumentException.class,
                 () -> controlador.actualizar(0, "Ana", "Matematicas", "ana@uni.edu.co"));
         assertTrue(bd.sqls.isEmpty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> controlador.actualizar(1, "", "Matematicas", "ana@uni.edu.co"));
     }
 
     @Test

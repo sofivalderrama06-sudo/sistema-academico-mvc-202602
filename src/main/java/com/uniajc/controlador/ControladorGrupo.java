@@ -37,4 +37,8 @@ public class ControladorGrupo {
     public void eliminar(int id) {
         grupoService.eliminarGrupo(id);
     }
+
+    public java.util.Map<Integer, String> obtenerGruposParaCombo() {
+        return grupoService.obtenerGruposParaCombo();
+    }
 }
