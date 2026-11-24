@@ -25,9 +25,9 @@ import com.uniajc.controlador.ControladorLogin;
 import com.uniajc.modelo.Usuario;
 
 /**
- * Ventana de login (JDialog modal con un JPanel adentro).
- * Es modal: el codigo que la abre se detiene en setVisible(true) hasta que
- * se cierre. Despues se consulta getUsuario(): si es null, no hubo login.
+ * Ventana de login (JDialog modal).
+ * Solicita credenciales para acceder al sistema.
+ * El rol ADMIN es el único que tiene acceso a la gestión y enlace de usuarios.
  */
 public class VistaLoginSwing extends JDialog {
 
@@ -84,7 +84,7 @@ public class VistaLoginSwing extends JDialog {
         campoUsuario.addActionListener(e -> realizarLogin());
         campoClave.addActionListener(e -> realizarLogin());
 
-        // Botones
+        // Botones de acción: Ingresar y Salir
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
         panelBotones.setBackground(Color.WHITE);
 
@@ -100,6 +100,7 @@ public class VistaLoginSwing extends JDialog {
         gbc.gridx = 0;
         gbc.gridy = 4;
         gbc.gridwidth = 2;
+        gbc.insets = new Insets(15, 0, 0, 0);
         panel.add(panelBotones, gbc);
 
         getRootPane().setDefaultButton(botonIngresar);
@@ -123,19 +124,15 @@ public class VistaLoginSwing extends JDialog {
 
     private JButton crearBoton(String texto, Color color) {
         JButton boton = new JButton(texto);
-        boton.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        boton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         boton.setBackground(color);
         boton.setForeground(Color.WHITE);
         boton.setFocusPainted(false);
         boton.setBorderPainted(false);
         boton.setOpaque(true);
-        boton.setPreferredSize(new Dimension(110, 35));
+        boton.setPreferredSize(new Dimension(105, 34));
         return boton;
     }
-
-    // ------------------------------------------------------------------
-    // Accion
-    // ------------------------------------------------------------------
 
     private void realizarLogin() {
         String username = campoUsuario.getText();
@@ -152,7 +149,6 @@ public class VistaLoginSwing extends JDialog {
                 campoClave.requestFocusInWindow();
             }
         } catch (IllegalArgumentException ex) {
-            // Campo vacio
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Validacion", JOptionPane.WARNING_MESSAGE);
         } catch (RuntimeException ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error",

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import com.uniajc.modelo.Usuario;
 import com.uniajc.soporte.BdFalsa;
+import com.uniajc.util.PasswordUtil;
 
 public class ControladorLoginTest {
 
@@ -32,22 +33,33 @@ public class ControladorLoginTest {
     }
 
     @Test
-    @DisplayName("iniciarSesion devuelve el usuario cuando la base lo encuentra")
+    @DisplayName("iniciarSesion devuelve el usuario cuando la base lo encuentra y la clave coincide con BCrypt")
     void loginCorrecto() {
-        bd.fila("usuario_id", "u-1", "username", "admin", "nombres", "Lauren", "apellidos", "Valderrama");
+        String hash = PasswordUtil.hashear("1234");
+        bd.fila("id", 1, "username", "admin", "password", hash, "nombre", "Lauren Valderrama", "correo", "admin@uniajc.edu.co", "rol", "ADMIN", "activo", true);
 
         Optional<Usuario> r = controlador.iniciarSesion("admin", "1234");
 
         assertTrue(r.isPresent());
         assertEquals("Lauren Valderrama", r.get().getNombreCompleto());
         assertEquals("admin", bd.ultimosParametros().get(1));
-        assertEquals("1234", bd.ultimosParametros().get(2));
     }
 
     @Test
     @DisplayName("iniciarSesion devuelve vacio con credenciales incorrectas")
     void loginIncorrecto() {
         assertFalse(controlador.iniciarSesion("admin", "mala").isPresent());
+    }
+
+    @Test
+    @DisplayName("iniciarSesion con contrasena que no coincide con el hash devuelve vacio")
+    void passwordNoCoincide() {
+        String hash = PasswordUtil.hashear("otraClave");
+        bd.fila("id", 1, "username", "admin", "password", hash, "nombre", "Lauren Valderrama", "correo", "admin@uniajc.edu.co", "rol", "ADMIN", "activo", true);
+
+        Optional<Usuario> r = controlador.iniciarSesion("admin", "claveIncorrecta");
+
+        assertFalse(r.isPresent());
     }
 
     @Test

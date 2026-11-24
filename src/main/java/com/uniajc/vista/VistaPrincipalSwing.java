@@ -17,13 +17,18 @@ import javax.swing.SwingConstants;
 
 import com.uniajc.db.DatabaseConexion;
 import com.uniajc.modelo.Usuario;
+import com.uniajc.util.PermisoManager;
+import com.uniajc.util.PermisoManager.Modulo;
 
 /**
  * Ventana principal (JFrame = contenedor de mayor jerarquia).
  * Contiene un menu y un panel con CardLayout: cada opcion del menu
- * muestra un JPanel distinto (inicio, estudiantes, y los que agregues luego).
- * Recibe el usuario que inicio sesion y un Runnable que se ejecuta al
- * cerrar sesion (el Main lo usa para volver a abrir el login).
+ * muestra un JPanel distinto (inicio, estudiantes, inscripciones, etc.).
+ *
+ * Aplica Control de Acceso Basado en Roles mediante PermisoManager:
+ * - ADMIN: Acceso total a todos los módulos.
+ * - DOCENTE: Acceso a "Mis Grupos" y "Calificaciones" (registro de notas según grupo).
+ * - ESTUDIANTE: Acceso a "Mis Calificaciones" (solo consulta de notas).
  */
 public class VistaPrincipalSwing extends JFrame {
 
@@ -35,7 +40,10 @@ public class VistaPrincipalSwing extends JFrame {
     private static final String PANEL_ESTUDIANTES = "estudiantes";
     private static final String PANEL_DOCENTES = "docentes";
     private static final String PANEL_MATERIAS = "materias";
+    private static final String PANEL_PERIODOS = "periodos";
     private static final String PANEL_GRUPOS = "grupos";
+    private static final String PANEL_INSCRIPCIONES = "inscripciones";
+    private static final String PANEL_USUARIOS = "usuarios";
 
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel panelContenedor = new JPanel(cardLayout);
@@ -43,29 +51,43 @@ public class VistaPrincipalSwing extends JFrame {
     private final Usuario usuario;
     private final Runnable alCerrarSesion;
 
-    // Paneles que cumplen el contrato Vista (se pueden refrescar)
-    private final VistaEstudianteSwing vistaEstudiante = new VistaEstudianteSwing();
-    private final VistaDocenteSwing vistaDocente = new VistaDocenteSwing();
-    private final VistaMateriaSwing vistaMateria = new VistaMateriaSwing();
-    private final VistaGrupo vistaGrupo = new VistaGrupo();
+    // Paneles que cumplen el contrato Vista (adaptados según el usuario autenticado)
+    private final VistaEstudianteSwing vistaEstudiante;
+    private final VistaDocenteSwing vistaDocente;
+    private final VistaMateriaSwing vistaMateria;
+    private final VistaPeriodo vistaPeriodo;
+    private final VistaGrupo vistaGrupo;
+    private final VistaInscripcionSwing vistaInscripcion;
+    private final VistaUsuarioSwing vistaUsuario;
 
     public VistaPrincipalSwing(Usuario usuario, Runnable alCerrarSesion) {
         this.usuario = usuario;
         this.alCerrarSesion = alCerrarSesion;
 
-        setTitle("Sistema Academico UNIAJC - " + usuario.getUsername());
-        setSize(900, 600);
+        // Se inicializan los paneles pasando el usuario actual para aplicar permisos contextuales
+        this.vistaEstudiante = new VistaEstudianteSwing();
+        this.vistaDocente = new VistaDocenteSwing();
+        this.vistaMateria = new VistaMateriaSwing();
+        this.vistaPeriodo = new VistaPeriodo();
+        this.vistaGrupo = new VistaGrupo(usuario);
+        this.vistaInscripcion = new VistaInscripcionSwing(usuario);
+        this.vistaUsuario = new VistaUsuarioSwing();
+
+        String rol = usuario != null && usuario.getRol() != null ? usuario.getRol().toUpperCase() : "ESTUDIANTE";
+        setTitle("Sistema Academico UNIAJC - " + (usuario != null ? usuario.getUsername() : "") + " [" + rol + "]");
+        setSize(950, 620);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
-        // Paneles que se pueden mostrar. Para una entidad nueva (docentes, materias...):
-        // crear su panel (que implemente Vista), agregarlo aqui con un nombre y
-        // agregar un item al menu.
+        // Agregamos paneles al contenedor CardLayout
         panelContenedor.add(crearPanelBienvenida(), PANEL_INICIO);
         panelContenedor.add(vistaEstudiante, PANEL_ESTUDIANTES);
         panelContenedor.add(vistaDocente, PANEL_DOCENTES);
         panelContenedor.add(vistaMateria, PANEL_MATERIAS);
+        panelContenedor.add(vistaPeriodo, PANEL_PERIODOS);
         panelContenedor.add(vistaGrupo, PANEL_GRUPOS);
+        panelContenedor.add(vistaInscripcion, PANEL_INSCRIPCIONES);
+        panelContenedor.add(vistaUsuario, PANEL_USUARIOS);
 
         setLayout(new BorderLayout());
         add(panelContenedor, BorderLayout.CENTER);
@@ -73,7 +95,7 @@ public class VistaPrincipalSwing extends JFrame {
 
         cardLayout.show(panelContenedor, PANEL_INICIO);
 
-        // Al cerrar la ventana con la X, se cierra tambien la conexion a la base de datos.
+        // Al cerrar la ventana con la X, se cierra también la conexión a la base de datos.
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -86,11 +108,14 @@ public class VistaPrincipalSwing extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBackground(COLOR_SECUNDARIO);
 
-        JLabel mensaje = new JLabel("Bienvenido, " + usuario.getNombreCompleto(), SwingConstants.CENTER);
+        String rol = usuario != null && usuario.getRol() != null ? usuario.getRol().toUpperCase() : "USUARIO";
+        String nombre = usuario != null ? usuario.getNombreCompleto() : "";
+
+        JLabel mensaje = new JLabel("Bienvenido, " + nombre, SwingConstants.CENTER);
         mensaje.setFont(new Font("Segoe UI", Font.BOLD, 26));
         mensaje.setForeground(COLOR_PRIMARIO);
 
-        JLabel ayuda = new JLabel("Selecciona una opcion del menu", SwingConstants.CENTER);
+        JLabel ayuda = new JLabel("Rol activo: " + rol + " | Selecciona una opcion del menu superior", SwingConstants.CENTER);
         ayuda.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 
         panel.add(mensaje, BorderLayout.CENTER);
@@ -102,7 +127,7 @@ public class VistaPrincipalSwing extends JFrame {
         JMenuBar barra = new JMenuBar();
         barra.setBackground(COLOR_PRIMARIO);
 
-        // Menu Archivo
+        // Menú Archivo (común a todos los usuarios)
         JMenu menuArchivo = crearMenu("Archivo");
         JMenuItem itemInicio = new JMenuItem("Inicio");
         itemInicio.addActionListener(e -> cardLayout.show(panelContenedor, PANEL_INICIO));
@@ -118,16 +143,16 @@ public class VistaPrincipalSwing extends JFrame {
         menuArchivo.add(itemCerrarSesion);
         menuArchivo.add(itemSalir);
 
-        // Menu Estudiantes
+        // Menú Estudiantes
         JMenu menuEstudiantes = crearMenu("Estudiantes");
         JMenuItem itemGestion = new JMenuItem("Gestion de estudiantes");
         itemGestion.addActionListener(e -> {
-            vistaEstudiante.actualizarPanel(); // siempre muestra los datos mas recientes
+            vistaEstudiante.actualizarPanel();
             cardLayout.show(panelContenedor, PANEL_ESTUDIANTES);
         });
         menuEstudiantes.add(itemGestion);
 
-        // Menu Docentes
+        // Menú Docentes
         JMenu menuDocentes = crearMenu("Docentes");
         JMenuItem itemGestionDocentes = new JMenuItem("Gestion de docentes");
         itemGestionDocentes.addActionListener(e -> {
@@ -136,7 +161,7 @@ public class VistaPrincipalSwing extends JFrame {
         });
         menuDocentes.add(itemGestionDocentes);
 
-        // Menu Materias: refresca la vista y luego la muestra en el contenedor.
+        // Menú Materias
         JMenu menuMaterias = crearMenu("Materias");
         JMenuItem itemGestionMaterias = new JMenuItem("Gestion de materias");
         itemGestionMaterias.addActionListener(e -> {
@@ -145,6 +170,16 @@ public class VistaPrincipalSwing extends JFrame {
         });
         menuMaterias.add(itemGestionMaterias);
 
+        // Menú Periodos
+        JMenu menuPeriodos = crearMenu("Periodos");
+        JMenuItem itemGestionPeriodos = new JMenuItem("Gestion de periodos");
+        itemGestionPeriodos.addActionListener(e -> {
+            vistaPeriodo.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_PERIODOS);
+        });
+        menuPeriodos.add(itemGestionPeriodos);
+
+        // Menú Grupos (se adapta según el rol)
         JMenu menuGrupos = crearMenu("Grupos");
         JMenuItem itemGestionGrupos = new JMenuItem("Gestion de grupos");
         itemGestionGrupos.addActionListener(e -> {
@@ -153,11 +188,62 @@ public class VistaPrincipalSwing extends JFrame {
         });
         menuGrupos.add(itemGestionGrupos);
 
+        // Menú Inscripciones / Calificaciones (se adapta según el rol)
+        JMenu menuInscripciones = crearMenu("Inscripciones");
+        JMenuItem itemGestionInscripciones = new JMenuItem("Gestion de inscripciones");
+        itemGestionInscripciones.addActionListener(e -> {
+            vistaInscripcion.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_INSCRIPCIONES);
+        });
+        menuInscripciones.add(itemGestionInscripciones);
+
+        // Menú Usuarios (exclusivo para ADMIN)
+        JMenu menuUsuarios = crearMenu("Usuarios");
+        JMenuItem itemGestionUsuarios = new JMenuItem("Gestion de usuarios");
+        itemGestionUsuarios.addActionListener(e -> {
+            vistaUsuario.actualizarPanel();
+            cardLayout.show(panelContenedor, PANEL_USUARIOS);
+        });
+        menuUsuarios.add(itemGestionUsuarios);
+
+        // CONSTRUCCIÓN DINÁMICA DE LA BARRA DE MENÚS MEDIANTE PermisoManager
         barra.add(menuArchivo);
-        barra.add(menuEstudiantes);
-        barra.add(menuDocentes);
-        barra.add(menuMaterias);
-        barra.add(menuGrupos);
+
+        String rol = usuario != null && usuario.getRol() != null ? usuario.getRol().toUpperCase() : "ESTUDIANTE";
+
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.ESTUDIANTES)) {
+            barra.add(menuEstudiantes);
+        }
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.DOCENTES)) {
+            barra.add(menuDocentes);
+        }
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.MATERIAS)) {
+            barra.add(menuMaterias);
+        }
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.PERIODOS)) {
+            barra.add(menuPeriodos);
+        }
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.GRUPOS)) {
+            if ("DOCENTE".equals(rol)) {
+                menuGrupos.setText("Mis Grupos");
+                itemGestionGrupos.setText("Grupos asignados");
+            }
+            barra.add(menuGrupos);
+        }
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.INSCRIPCIONES)) {
+            if ("ESTUDIANTE".equals(rol)) {
+                menuInscripciones.setText("Mis Calificaciones");
+                itemGestionInscripciones.setText("Consultar mis notas");
+            } else if ("DOCENTE".equals(rol)) {
+                menuInscripciones.setText("Calificaciones");
+                itemGestionInscripciones.setText("Registro de notas por grupo");
+            }
+            barra.add(menuInscripciones);
+        }
+        if (PermisoManager.tieneAccesoModulo(rol, Modulo.USUARIOS)) {
+            barra.add(menuUsuarios);
+        }
+
         setJMenuBar(barra);
     }
 

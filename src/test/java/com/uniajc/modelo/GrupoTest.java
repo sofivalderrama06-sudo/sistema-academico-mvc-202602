@@ -14,8 +14,9 @@ public class GrupoTest {
     @Test
     @DisplayName("El constructor sin id deja el id en 0 (grupo nuevo)")
     void constructorSinId() {
+        //  Se crea un grupo sin id, simulando un nuevo registro
         Grupo g = new Grupo(2, 3, "Aula 101", "Lunes 8-10", null);
-
+//  Se valida que los atributos hayan sido correctamente asignados
         assertEquals(0, g.getId());
         assertEquals(2, g.getId_materia());
         assertEquals(3, g.getId_docente());
@@ -27,6 +28,7 @@ public class GrupoTest {
     @Test
     @DisplayName("El constructor con id reconstruye un grupo existente")
     void constructorConId() {
+        //  Se crea un grupo con id, simulando un registro existente
         Timestamp fecha = new Timestamp(0L);
         Grupo g = new Grupo(9, 2, 3, "Aula 202", "Martes 10-12", fecha);
 
@@ -41,16 +43,17 @@ public class GrupoTest {
     @Test
     @DisplayName("Los setters modifican los campos")
     void setters() {
+        //  Se crea un grupo con valores iniciales
         Grupo g = new Grupo(1, 1, "A", "B", null);
         Timestamp fecha = new Timestamp(1000L);
-
+//  Se modifican los atributos mediante los métodos setters
         g.setId(5);
         g.setId_materia(6);
         g.setId_docente(7);
         g.setClassroom("Laboratorio");
         g.setSchedule("Viernes 2-4");
         g.setCreated_at(fecha);
-
+//  Se verifica que los valores hayan sido correctamente asignados
         assertEquals(5, g.getId());
         assertEquals(6, g.getId_materia());
         assertEquals(7, g.getId_docente());

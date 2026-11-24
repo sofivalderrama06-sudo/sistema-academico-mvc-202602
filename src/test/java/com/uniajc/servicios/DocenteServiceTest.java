@@ -31,7 +31,7 @@ public class DocenteServiceTest {
         return assertThrows(IllegalArgumentException.class, () -> servicio.registrarDocente(e));
     }
 
-    // ------------------------------------------------------------ registrar
+    //  registrar
 
     @Test
     @DisplayName("Registrar un docente valido lo guarda en el DAO")
@@ -145,7 +145,7 @@ public class DocenteServiceTest {
         assertEquals(0, dao.guardados);
     }
 
-    // ------------------------------------------------------------ consultar
+    //  consultar
 
     @Test
     @DisplayName("obtenerTodosLosDocentes devuelve la lista del DAO")
@@ -174,7 +174,7 @@ public class DocenteServiceTest {
         assertFalse(servicio.buscarDocentePorId(99).isPresent());
     }
 
-    // ------------------------------------------------------------ actualizar
+    //  actualizar
 
     @Test
     @DisplayName("Actualizar un docente valido modifica sus datos")
@@ -243,7 +243,7 @@ public class DocenteServiceTest {
         assertEquals(1, dao.actualizados);
     }
 
-    // ------------------------------------------------------------ eliminar
+    //  eliminar
 
     @Test
     @DisplayName("Eliminar un docente existente lo borra")

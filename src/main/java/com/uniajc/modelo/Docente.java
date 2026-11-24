@@ -56,6 +56,6 @@ public class Docente {
 
     @Override
     public String toString() {
-        return id + " | " + nombre + " " + especialidad + " | " + email;
+        return id + " | " + nombre + " | " + especialidad + " | " + email;
     }
 }

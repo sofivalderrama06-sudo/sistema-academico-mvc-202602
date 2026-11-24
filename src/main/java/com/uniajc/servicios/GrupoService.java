@@ -70,6 +70,10 @@ public class GrupoService {
         grupo.setSchedule(horario);
     }
 
+    public java.util.Map<Integer, String> obtenerGruposParaCombo() {
+        return grupoDao.obtenerGruposParaCombo();
+    }
+
     private String limpiar(String valor) {
         return valor == null ? "" : valor.trim();
     }
